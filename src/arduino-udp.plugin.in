@@ -1,0 +1,7 @@
+[Plugin]
+Version = @VERSION@
+Module = arduino-udp
+Name = ArduinoUDP Plugin
+License = Private
+Description = Implementation of some plugin idea
+Copyright = Copyright © Geoff Johnson
