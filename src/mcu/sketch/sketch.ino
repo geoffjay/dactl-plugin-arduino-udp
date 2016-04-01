@@ -14,7 +14,6 @@
 
 #include "MS5803.h"
 
-
 // Communication related
 byte mac[] = { 0x90, 0xA2, 0xDA, 0x0F, 0xF7, 0xC7 };
 IPAddress ip(10, 0, 2, 10);
@@ -33,7 +32,7 @@ unsigned long lastRead = 0;
 const long readPeriod = 50;
 
 // Sensor related
-const int enPins[] = {6, 7, 8, 9};
+const int enPins[] = { 7, 8, 5, 6, 14, 15, 16, 17, 9 };
 const int N = sizeof(enPins) / sizeof(int);
 MS5803 sensors[N];
 bool initialized = false;
@@ -95,20 +94,25 @@ void tx() {
 
   lastSend = millis();
 
-  Udp.beginPacket(dest, port);
-  Udp.print("{");
-  if (!initialized) {
-    Udp.print("-1|NaN");
-  } else {
+  String msg = "{";
+
+//  if (!initialized) {
+//    Udp.print("-1|NaN");
+//  } else {
     for (int i = 0; i < N; i++) {
       sensors[i].readSensor();
-      Udp.print(String(i) + "|");// + String(sensors[i].pressure()) + (i != N-1) ? "|" : "");
-      Udp.print(String(sensors[i].pressure()));
+      msg += String(sensors[i].pressure());
       if (i != N-1)
-        Udp.print("|");
+        msg += ",";
+      else
+        msg += "}\n";
     }
-  }
-  Udp.println("}");
+//  }
+
+  char buf[msg.length()];
+  Udp.beginPacket(dest, port);
+  msg.toCharArray(buf, msg.length());
+  Udp.write(buf);
+  Serial.print(msg);
   Udp.endPacket();
 }
-

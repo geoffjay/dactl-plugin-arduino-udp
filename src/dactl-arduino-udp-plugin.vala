@@ -14,7 +14,7 @@ public void module_init (Dactl.PluginLoader loader) {
 
 public class Dactl.ArduinoUDP.Plugin : Dactl.Plugin {
 
-    public const string NAME = "arduino_udp";
+    public const string NAME = "arduino-udp";
 
     private bool _has_factory = true;
     public override bool has_factory { get { return _has_factory; } }

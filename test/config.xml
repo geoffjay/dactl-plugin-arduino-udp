@@ -11,10 +11,10 @@
     <plugin id="arduino-udp0" type="arduino_udp">
       <ui:object id="arduino-udp-ctl0" type="plugin-control" parent="box0-0">
         <ui:property name="port">3000</ui:property>
-        <ui:property name="ref">/daqctl0/dev1/udp00</ui:property>
-        <ui:property name="ref">/daqctl0/dev1/udp01</ui:property>
-        <ui:property name="ref">/daqctl0/dev1/udp02</ui:property>
-        <ui:property name="ref">/daqctl0/dev1/udp03</ui:property>
+        <ui:property name="ref">/daqctl0/udp00</ui:property>
+        <ui:property name="ref">/daqctl0/udp01</ui:property>
+        <ui:property name="ref">/daqctl0/udp02</ui:property>
+        <ui:property name="ref">/daqctl0/udp03</ui:property>
       </ui:object>
     </plugin>
   </plugins>
@@ -347,10 +347,12 @@
       </cld:object>
 
       <!-- UDP device for the plugin -->
-      <cld:object id="dev1" type="device" driver="comedi">
-        <cld:property name="hardware">devnull</cld:property>
-        <cld:property name="type">input</cld:property>
-        <cld:property name="filename">/dev/null</cld:property>
+      <!--
+         -<cld:object id="dev1" type="device" driver="comedi">
+         -  <cld:property name="hardware">devnull</cld:property>
+         -  <cld:property name="type">input</cld:property>
+         -  <cld:property name="filename">/dev/null</cld:property>
+         -->
         <!-- Channels for the plugin to connect the UDP stream to -->
         <cld:object id="udp00" type="channel" ref="/daqctl0/dev1" ctype="analog" direction="input">
           <cld:property name="tag">UDP01</cld:property>
@@ -380,7 +382,9 @@
           <cld:property name="calref">/udp_cal00</cld:property>
           <cld:property name="naverage">10</cld:property>
         </cld:object>
-      </cld:object>
+      <!--
+         -</cld:object>
+         -->
     </cld:object>
 
     <!-- Channel calibrations -->

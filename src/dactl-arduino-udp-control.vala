@@ -4,36 +4,26 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
     /* XML/XSD variables are useless for now */
     private string _xml = """
         <ui:object id=\"arduino-udp-ctl0\" type=\"arduino-udp-plugin\">
-          <ui:property name="ref" device="arduino-udp">/ser0</ui:property>
+          <ui:property name="port">3000</ui:property>
+          <ui:property name="ref">/daqctl0/udp00</ui:property>
+          <ui:property name="ref">/daqctl0/udp01</ui:property>
+          <ui:property name="ref">/daqctl0/udp02</ui:property>
+          <ui:property name="ref">/daqctl0/udp03</ui:property>
         </ui:object>
     """;
 
     private string _xsd = """
-        <xs:element name="object">
+        <xs:element name="ui:object">
           <xs:attribute name="id" type="xs:string" use="required"/>
           <xs:attribute name="type" type="xs:string" use="required"/>
           <xs:attribute name="parent" type="xs:string" use="required"/>
+          <xs:sequence>
+            <xs:element name="ui:property">
+              <xs:attribute name="name"/>
+            </xs:element>
+          </xs:sequence>
         </xs:element>
     """;
-
-    [GtkChild]
-    private Gtk.Label lbl_arduino_udp;
-
-    public string port_arduino_udp_ref { get; set; }
-
-    private weak Cld.SerialPort _port_arduino_udp;
-
-    public Cld.SerialPort port_arduino_udp {
-        get { return _port_arduino_udp; }
-        set {
-            if ((value as Cld.Object).uri == port_arduino_udp_ref) {
-                _port_arduino_udp = value;
-                port_arduino_udp_isset = true;
-            }
-        }
-    }
-
-    private bool port_arduino_udp_isset = false;
 
     /**
      * {@inheritDoc}
@@ -56,6 +46,14 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
      */
     protected bool satisfied { get; set; default = false; }
 
+    private int port;
+
+    private bool enabled;
+
+    private Gee.List<string> references = new Gee.LinkedList<string> ();
+
+    private Gee.Map<string, Cld.AIChannel> channels = new Gee.HashMap<string, Cld.AIChannel> ();
+
     construct {
         id = "arduino-udp-ctl0";
     }
@@ -65,6 +63,16 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
 
         /* Request the CLD data */
         request_data.begin ();
+
+        if (enabled) {
+            listen_udp.begin ((obj, res) => {
+                try {
+                    listen_udp.end (res);
+                } catch (ThreadError e) {
+                    error (e.message);
+                }
+            });
+        }
     }
 
     /**
@@ -73,22 +81,24 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
     public override void build_from_xml_node (Xml.Node *node) {
         id = node->get_prop ("id");
         parent_ref = node->get_prop ("parent");
+
         message ("Building `%s' with parent `%s'", id, parent_ref);
 
         for (Xml.Node *iter = node->children; iter != null; iter = iter->next) {
             if (iter->name == "property") {
                 switch (iter->get_prop ("name")) {
+                    case "port":
+                        port = int.parse (iter->get_content ());
+                        break;
+                    case "enabled":
+                        enabled = bool.parse (iter->get_content ());
+                        break;
                     case "ref":
-                        var device = iter->get_prop ("device");
-                        if (device == "arduino-udp")
-                            port_arduino_udp_ref = iter->get_content ();
-
+                        references.add (iter->get_content ());
                         break;
                     default:
                         break;
                 }
-
-                message (" > Adding %s to %s", iter->get_content (), id);
             }
         }
     }
@@ -97,12 +107,12 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
      * {@inheritDoc}
      */
     public void offer_cld_object (Cld.Object object) {
-        if (object.uri == port_arduino_udp_ref) {
-            port_arduino_udp = object as Cld.SerialPort;
-            port_arduino_udp.new_data.connect (arduino_udp_new_data_cb);
+        if (references.contains (object.uri)) {
+            message ("Adding `%s' to `%s'", object.uri, id);
+            channels.set (object.id, object as Cld.AIChannel);
         }
 
-        if (port_arduino_udp_isset)
+        if (references.size == channels.size)
             satisfied = true;
     }
 
@@ -111,12 +121,52 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
      */
     protected async void request_data () {
         while (!satisfied) {
-            if (!port_arduino_udp_isset)
-                request_object (port_arduino_udp_ref);
+            foreach (var reference in references) {
+                request_object (reference);
+            }
 
             // Try again in a second
             yield nap (1000);
         }
+    }
+
+    protected async void listen_udp () throws ThreadError {
+        SourceFunc callback = listen_udp.callback;
+
+        ThreadFunc<void*> run = () => {
+            try {
+                message ("Connecting UDP socket to port %d", port);
+                var socket = new Socket (SocketFamily.IPV4,
+                                        SocketType.DATAGRAM,
+                                        SocketProtocol.UDP);
+                var addr = new InetAddress.from_bytes ({0, 0, 0, 0}, SocketFamily.IPV4);
+                var sa = new InetSocketAddress (addr, (uint16) port);
+                socket.bind (sa, true);
+
+                var source = socket.create_source (IOCondition.IN);
+                source.set_callback ((s, cond) => {
+                    try {
+                        uint8 buffer[4096];
+                        size_t read = s.receive (buffer);
+                        buffer[read] = 0;
+                        var ts = new DateTime.now_local ();
+                        message ("%f: %ld bytes: %s", ts.get_seconds (), (long) read, (string) buffer);
+                    } catch (Error e) {
+                        error (e.message);
+                    }
+                    return true;
+                });
+                source.attach (MainContext.get_thread_default ());
+            } catch (Error e) {
+                error (e.message);
+            }
+
+            Idle.add ((owned) callback);
+            return null;
+        };
+
+        Thread.create<void*> (run, false);
+        yield;
     }
 
     /**
@@ -124,31 +174,10 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
      *
      * FIXME: currently has no configurable property nodes or attributes
      */
-    protected override void update_node () {
-        /*
-         *for (Xml.Node *iter = node->children; iter != null; iter = iter->next) {
-         *    if (iter->name == "property") {
-         *        switch (iter->get_prop ("name")) {
-         *            case "---":
-         *                iter->set_content (---);
-         *                break;
-         *            default:
-         *                break;
-         *        }
-         *    }
-         *}
-         */
-    }
+    protected override void update_node () { /* do nothing */ }
 
-    private void arduino_udp_new_data_cb (Cld.SerialPort port, uchar[] data, int size) {
-        string received = "";
-
-        for (var i = 0; i < size; i++) {
-            unichar c = "%c".printf (data[i]).get_char ();
-            string s = "%c".printf (data[i]);
-            received += "%s".printf (s);
-        }
-
-        //stdout.printf ("Recv %d chars: %s\n", size, received);
+    [GtkCallback]
+    private void btn_settings_clicked_cb () {
+        message ("`%s' - woot!", id);
     }
 }
