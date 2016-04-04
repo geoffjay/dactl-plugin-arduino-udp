@@ -26,6 +26,7 @@ IPAddress dest(10, 0, 2, 2);
 
 EthernetUDP Udp;
 
+unsigned int count = 0;
 unsigned long lastSend = 0;
 const long sendPeriod = 1000;
 unsigned long lastRead = 0;
@@ -37,13 +38,26 @@ const int N = sizeof(enPins) / sizeof(int);
 MS5803 sensors[N];
 bool initialized = false;
 
+const int Z = 2;
+const int CSD = 4;
+const int CSE = 10;
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
   // Disable all sensors before the initialization of any
-  for (int i = 0; i < N; i++)
+  for (int i = 0; i < N; i++) {
+    pinMode(enPins[i], OUTPUT);
     digitalWrite(enPins[i], HIGH);
+  }
+
+  pinMode(CSD, OUTPUT);
+  pinMode(CSE, OUTPUT);
+  pinMode(Z, OUTPUT);
+  digitalWrite(CSD, HIGH);
+  digitalWrite(CSE, HIGH);
+  digitalWrite(Z, LOW);
 
   // Initialize the sensor and perform a CRC check
   for (int i = 0; i < N; i++) {
@@ -55,6 +69,8 @@ void setup() {
       initialized = true;
     }
   }
+
+  digitalWrite(Z, HIGH);
 
   // Connect to the network and setup a connectionless socket
   Ethernet.begin(mac, ip, ns, gateway, netmask);
@@ -94,7 +110,10 @@ void tx() {
 
   lastSend = millis();
 
+  //String msg = "{|" + String(count++) + "|";
   String msg = "{";
+
+  digitalWrite(Z, LOW);
 
 //  if (!initialized) {
 //    Udp.print("-1|NaN");
@@ -109,10 +128,13 @@ void tx() {
     }
 //  }
 
+  digitalWrite(Z, HIGH);
+
   char buf[msg.length()];
   Udp.beginPacket(dest, port);
   msg.toCharArray(buf, msg.length());
   Udp.write(buf);
-  Serial.print(msg);
   Udp.endPacket();
+
+  Serial.print(msg);
 }

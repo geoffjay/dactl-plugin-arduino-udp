@@ -42,27 +42,36 @@ class MS5803
 public:
     // Constructor for SPI
     MS5803(uint8_t cs);
-    
+
     // Constructor for i2c - address set in implementation.
     MS5803();
 
     /* Initalizes sensor and downloads coefficient values from the device.
      Must call this before readSensor. */
-    boolean initalizeSensor();
-    
+    boolean initializeSensor();
+
     /* Does the actual read from the sensor. */
     void readSensor();
-    
+
     /* Once readSensor is called, the temp and pressure values can be
      retrieved from these methods. */
     float temperature() const       { return temp;  }  // returns temp in degrees C.
-    float pressure() const          { return press; }  // Returns pressure in mBars. 
-    
+    float pressure() const          { return press; }  // Returns pressure in mBars.
+
     /* Resets the sensor */
     void resetSensor();
-    
+
 private:
-    
+    unsigned int      sensorCoefficients[8];           // calibration coefficients
+    unsigned long     D1                       = 0;    // Stores uncompensated pressure value
+    unsigned long     D2                       = 0;    // Stores uncompensated temperature value
+    float             deltaTemp                = 0;    // These three variable are used for the conversion.
+    float             sensorOffset             = 0;
+    float             sensitivity              = 0;
+    float             temp2                    = 0;
+    float             sensorOffset2            = 0;
+    float             sensitivity2             = 0;
+
     float             press                    = 0;    // Stores actual pressure in mbars
     float             temp		               = 0;    // Stores actual temp in degrees C.
 
