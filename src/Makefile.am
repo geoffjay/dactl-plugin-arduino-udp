@@ -24,7 +24,7 @@ libdactl_arduino_udp_la_VALAFLAGS = \
 
 libdactl_arduino_udp_la_CFLAGS = \
 	--include config.h \
-	-DG_LOG_DOMAIN='"ARDUINO_UDP"' \
+	-DG_LOG_DOMAIN='"ArduinoUDP"' \
 	$(PLUGIN_DEPS_CFLAGS)
 
 libdactl_arduino_udp_la_LIBADD = \

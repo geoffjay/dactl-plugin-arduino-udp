@@ -5,10 +5,10 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
     private string _xml = """
         <ui:object id=\"arduino-udp-ctl0\" type=\"arduino-udp-plugin\">
           <ui:property name="port">3000</ui:property>
-          <ui:property name="ref">/daqctl0/udp00</ui:property>
-          <ui:property name="ref">/daqctl0/udp01</ui:property>
-          <ui:property name="ref">/daqctl0/udp02</ui:property>
-          <ui:property name="ref">/daqctl0/udp03</ui:property>
+          <ui:property name="ref">/udp00</ui:property>
+          <ui:property name="ref">/udp01</ui:property>
+          <ui:property name="ref">/udp02</ui:property>
+          <ui:property name="ref">/udp03</ui:property>
         </ui:object>
     """;
 
@@ -46,9 +46,9 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
      */
     protected bool satisfied { get; set; default = false; }
 
-    private int port;
+    private int port = 3000;
 
-    private bool enabled;
+    private bool enabled = true;
 
     private Gee.List<string> references = new Gee.LinkedList<string> ();
 
@@ -73,6 +73,9 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
                 }
             });
         }
+
+        if (!visible)
+            this.hide ();
     }
 
     /**
@@ -135,7 +138,7 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
 
         ThreadFunc<void*> run = () => {
             try {
-                message ("Connecting UDP socket to port %d", port);
+                message ("Connecting UDP socket of `%s' to port %d", id, port);
                 var socket = new Socket (SocketFamily.IPV4,
                                         SocketType.DATAGRAM,
                                         SocketProtocol.UDP);
@@ -148,9 +151,20 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
                     try {
                         uint8 buffer[4096];
                         size_t read = s.receive (buffer);
-                        buffer[read] = 0;
-                        var ts = new DateTime.now_local ();
-                        message ("%f: %ld bytes: %s", ts.get_seconds (), (long) read, (string) buffer);
+                        buffer[read] = 0;                   // null terminate
+                        string recv = (string) buffer;
+                        recv = recv.strip ();
+
+                        int msg_start = recv.index_of ("{");
+                        int msg_end = recv.index_of ("}");
+
+                        string[] tokens = (recv.slice (msg_start+1, msg_end)).split (",", channels.size);
+                        for (int i = 0; i < tokens.length; i++) {
+                            int from = references.@get (i).last_index_of ("/") + 1;
+                            int to = references.@get (i).length;
+                            var channel = channels.@get (references.@get (i).slice (from, to));
+                            channel.add_raw_value (double.parse (tokens[i]));
+                        }
                     } catch (Error e) {
                         error (e.message);
                     }
@@ -179,5 +193,9 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
     [GtkCallback]
     private void btn_settings_clicked_cb () {
         message ("`%s' - woot!", id);
+
+        foreach (var channel in channels.values) {
+            message ("%s", channel.id);
+        }
     }
 }

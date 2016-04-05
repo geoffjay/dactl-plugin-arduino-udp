@@ -21,14 +21,14 @@ IPAddress ns(10, 0, 0, 2);
 IPAddress gateway(10, 0, 0, 1);
 IPAddress netmask(255, 255, 0, 0);
 
-unsigned int port = 3333;
+unsigned int port = 3000;
 IPAddress dest(10, 0, 2, 2);
 
 EthernetUDP Udp;
 
 unsigned int count = 0;
 unsigned long lastSend = 0;
-const long sendPeriod = 1000;
+const long sendPeriod = 200;
 unsigned long lastRead = 0;
 const long readPeriod = 50;
 
