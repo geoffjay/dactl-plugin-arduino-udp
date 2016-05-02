@@ -140,8 +140,8 @@ public class Dactl.ArduinoUDP.Control : Dactl.SimpleWidget, Dactl.PluginControl,
             try {
                 message ("Connecting UDP socket of `%s' to port %d", id, port);
                 var socket = new Socket (SocketFamily.IPV4,
-                                        SocketType.DATAGRAM,
-                                        SocketProtocol.UDP);
+                                         SocketType.DATAGRAM,
+                                         SocketProtocol.UDP);
                 var addr = new InetAddress.from_bytes ({0, 0, 0, 0}, SocketFamily.IPV4);
                 var sa = new InetSocketAddress (addr, (uint16) port);
                 socket.bind (sa, true);

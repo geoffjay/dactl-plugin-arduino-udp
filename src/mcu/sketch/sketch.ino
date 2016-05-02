@@ -14,15 +14,17 @@
 
 #include "MS5803.h"
 
-// Communication related
-byte mac[] = { 0x90, 0xA2, 0xDA, 0x0F, 0xF7, 0xC7 };
-IPAddress ip(10, 0, 2, 10);
-IPAddress ns(10, 0, 0, 2);
-IPAddress gateway(10, 0, 0, 1);
-IPAddress netmask(255, 255, 0, 0);
+#define BOARDID 0x08
 
-unsigned int port = 3000;
-IPAddress dest(10, 0, 2, 2);
+// Communication related
+IPAddress ns(172, 16, 0, 1);
+IPAddress gateway(172, 16, 0, 1);
+IPAddress netmask(255, 255, 255, 0);
+IPAddress dest(172, 16, 0, 10);
+
+byte mac[] = { 0xFA, 0x7E, 0xB0, 0x0B, 0x1E, 0x50 + BOARDID };
+IPAddress ip(172, 16, 0, 100 + BOARDID);
+unsigned int port = 3000 + BOARDID;
 
 EthernetUDP Udp;
 
@@ -33,7 +35,11 @@ unsigned long lastRead = 0;
 const long readPeriod = 50;
 
 // Sensor related
-const int enPins[] = { 7, 8, 5, 6, 14, 15, 16, 17, 9 };
+//const int enPins[] = { 3, 5, 17, 16, 15, 14, 8, 7, 6 };   // octagon
+const int enPins[] = { 3, 7, 6, 5, 17, 16, 15, 14, 8 };   // octagon
+//const int enPins[] = { 8, 7, 6, 5, 17, 16, 15, 14 };      // 8 sensor arrangement
+//const int enPins[] = { 8, 7, 6, 5 };                      // 4 sensor arrangement
+
 const int N = sizeof(enPins) / sizeof(int);
 MS5803 sensors[N];
 bool initialized = false;
